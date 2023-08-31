@@ -1,8 +1,8 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import User from "../models/User.js";
+import User from "../../models/User.js";
 
-export const resolvers = {
+export const auth = {
   Query: {
     loginUser: async (_, { input }) => {
       const { email, password } = input;
@@ -16,9 +16,12 @@ export const resolvers = {
         if (!isMatch) {
           throw new Error("Invalid Credentials.");
         }
-        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
+        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+          algorithm: "HS256",
+          subject: `${user._id}`,
+          expiresIn: "1d",
+        });
         delete user.password;
-        console.log(user);
         return { token, user };
       } catch (error) {
         throw new Error(error.message);
@@ -43,7 +46,6 @@ export const resolvers = {
       // Return the user object without the password field
       const userWithoutPassword = { ...savedUser.toObject() };
       delete userWithoutPassword.password;
-      delete userWithoutPassword.picturePath;
 
       return userWithoutPassword;
     },

@@ -1,7 +1,11 @@
 import express from "express";
 import { ApolloServer } from "@apollo/server";
+import { mergeResolvers } from "@graphql-tools/merge";
+import { makeExecutableSchema } from "@graphql-tools/schema";
+import { applyMiddleware } from "graphql-middleware";
 import { expressMiddleware } from "@apollo/server/express4";
 import { ApolloServerPluginDrainHttpServer } from "@apollo/server/plugin/drainHttpServer";
+import { expressjwt } from "express-jwt";
 import bodyParser from "body-parser";
 import mongoose from "mongoose";
 import cors from "cors";
@@ -13,9 +17,16 @@ import path from "path";
 import http from "http";
 import { fileURLToPath } from "url";
 import pkg from "body-parser";
+import { log } from "console";
 const { json } = pkg;
-import { typeDefs } from "./schema/type-defs.js";
-import { resolvers } from "./schema/resolvers.js";
+
+import permissions from "./schema/permissions.js";
+
+import { authDefs } from "./schema/type-defs/auth.js";
+import { userDefs } from "./schema/type-defs/user.js";
+
+import { auth } from "./schema/resolvers/auth.js";
+import { user } from "./schema/resolvers/user.js";
 
 /* CONFIGURATIONS */
 const __filename = fileURLToPath(import.meta.url);
@@ -35,26 +46,29 @@ app.use(bodyParser.json({ limit: "30mb", extended: true }));
 app.use(bodyParser.urlencoded({ limit: "30mb", extended: true }));
 app.use("/assets", express.static(path.join(__dirname, "public/assets")));
 
-// /* FILE STORAGE */
-// const storage = multer.diskStorage({
-//   destination: function (req, file, cb) {
-//     cb(null, "public/assets");
-//   },
-//   filename: function (req, file, cb) {
-//     cb(null, file.originalname);
-//   },
-// });
-// const upload = multer({ storage });
-
-// /* ROUTES WITH FILES */
-// app.post("/auth/register", upload.single("picture"), register);
+app.use(
+  expressjwt({
+    secret: process.env.JWT_SECRET,
+    algorithms: ["HS256"],
+    credentialsRequired: false,
+    requestProperty: "auth",
+  })
+);
 
 /* GraphQL SETUP */
 const httpServer = http.createServer(app);
+
+const resolvers = [auth, user]; // group all resolver files
+
 const GraphQLServer = async () => {
+  // Create the schema using makeExecutableSchema
+  const schema = makeExecutableSchema({
+    typeDefs: [authDefs, userDefs], // Combine typeDefs
+    resolvers: mergeResolvers(resolvers), // Merge resolvers
+  });
+
   const server = new ApolloServer({
-    typeDefs,
-    resolvers,
+    schema: applyMiddleware(schema, permissions),
     plugins: [ApolloServerPluginDrainHttpServer({ httpServer })],
   });
   await server.start();
@@ -63,7 +77,10 @@ const GraphQLServer = async () => {
     cors(),
     json(),
     expressMiddleware(server, {
-      context: async ({ req }) => ({ token: req.headers.token }),
+      context: async ({ req }) => {
+        const user = req.auth || null;
+        return { user };
+      },
     })
   );
 };
