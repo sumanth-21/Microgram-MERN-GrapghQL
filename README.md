@@ -1,7 +1,7 @@
 # Microgram-MERN-GrapghQL
 Inspired by Instagram - Work in progress
 
-#Config
+# Config
 
 ## .env
 >NODE_ENV
