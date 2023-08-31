@@ -5,6 +5,9 @@ Inspired by Instagram - Work in progress
 
 ## .env
 >NODE_ENV
+>
 >PORT
+>
 >MONGO_URL
+>
 >JWT_SECRET
