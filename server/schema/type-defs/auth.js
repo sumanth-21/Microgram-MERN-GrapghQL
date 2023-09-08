@@ -1,11 +1,11 @@
-export const typeDefs = `#graphql
+export const authDefs = `#graphql
     type Query {
         loginUser(input: LoginInput): AuthPayload!
     }
     type User {
         _id: ID!
-        firstName: String
-        lastName: String
+        firstName: String!
+        lastName: String!
         email: String!
         picturePath: String
     }
